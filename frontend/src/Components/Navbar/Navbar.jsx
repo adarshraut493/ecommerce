@@ -50,12 +50,12 @@ const Navbar = () => {
 
           <div className='flex items-center gap-4'>
             {localStorage.getItem('auth-token')
-              ? <button onClick={() => { localStorage.removeItem('auth-token'); localStorage.removeItem('isAdmin'); toast.info('Logged out successfully'); window.location.replace('/'); }} className='hidden md:block px-5 py-2 rounded hover:opacity-90 transition-all font-bold' style={{backgroundColor: '#FF6B35', color: '#fff'}}>Logout</button>
-              : <Link to='/login'><button className='hidden md:block px-5 py-2 rounded hover:opacity-90 transition-all font-bold' style={{backgroundColor: '#FF6B35', color: '#fff'}}>Login</button></Link>}
+              ? <button onClick={() => { localStorage.removeItem('auth-token'); localStorage.removeItem('isAdmin'); toast.info('Logged out successfully'); window.location.replace('/'); }} className='hidden md:block px-5 py-2 rounded hover:opacity-90 transition-all font-bold bg-orange text-white'>Logout</button>
+              : <Link to='/login'><button className='hidden md:block px-5 py-2 rounded hover:opacity-90 transition-all font-bold bg-orange text-white'>Login</button></Link>}
 
             <Link to='/cart' className='relative'>
               <img src={cart_icon} alt="Cart" className='w-7 h-7 brightness-0 invert' />
-              {getTotalCartItems() > 0 && <div className='absolute -top-2 -right-2 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold' style={{backgroundColor: '#FF6B35', color: '#fff'}}>{getTotalCartItems()}</div>}
+              {getTotalCartItems() > 0 && <div className='absolute -top-2 -right-2 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold bg-orange text-white'>{getTotalCartItems()}</div>}
             </Link>
           </div>
         </div>
