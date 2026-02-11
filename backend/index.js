@@ -1,19 +1,70 @@
-const port = 4000;
+const port = process.env.PORT || 4000;
 const express = require("express");
 const app = express();
 const mongoose = require("mongoose"); // through this we can use mongoDB database
 const jwt = require("jsonwebtoken");  // through this we can generate the token and verify the token. 
 const multer = require("multer"); // used to store the uploaded image
 const path = require("path");
-const cors = require("cors");  // this allows to application to access the backend. 
+const cors = require("cors");  // this allows to application to access the backend.
+const crypto = require("crypto"); // for razorpay signature validation 
+const bcrypt = require("bcrypt"); // for password hashing
 
 app.use(express.json()); // by this express.josn whatever response we will get from response that will be automatically passed through json;
 app.use(cors());
 
+
+//For Razorpay
+app.use(express.urlencoded({ extended: false }));
+const PORT = process.env.PORT;
+const Razorpay = require("razorpay");
+require("dotenv").config()
+app.post("/order", async (req, res) => {  // creating razorpay instances 
+    try {
+        const razorpay = new Razorpay({
+            key_id: process.env.RAZORPAY_KEY_ID,
+            key_secret: process.env.RAZORPAY_SECRET,
+        });
+
+        const options = req.body;
+        const order = await razorpay.orders.create(options);
+        if (!order) {
+            return res.status(500).json({ error: "Error creating order" });
+        }
+        res.json(order);
+
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+
+
+// for payment validation 
+app.post("/order/validate", async (req, res) => {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+        req.body;
+        
+    const sha = crypto.createHmac("sha256", process.env.RAZORPAY_SECRET);
+    //order_id + "|" + razorpay_payment_id
+    sha.update(`${razorpay_order_id}|${razorpay_payment_id}`);
+    const digest = sha.digest("hex");
+    if (digest !== razorpay_signature) {
+        return res.status(400).json({ msg: "Transaction is not legit!" });
+    }
+    res.json({
+        msg: "success",
+        orderId: razorpay_order_id,
+        paymentId: razorpay_payment_id,
+    });
+})
+
 // Database conection with mongoDB
-const password = encodeURIComponent("Aadarsh@12345");  // it is a javascript function use to encode special symbols like @ etc.
-mongoose.connect(`mongodb+srv://adarshraut493:${password}@cluster0.hxqagjj.mongodb.net/e-commerce`)
-// Connection string
+mongoose.connect(process.env.MONGODB_URI, {
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+}).then(() => console.log("MongoDB Connected Successfully"))
+  .catch((err) => console.log("MongoDB Connection Error:", err.message))
 
 
 // API creation//An API, or Application Programming Interface, is a set of rules and protocols that allows one software application to interact with another
@@ -33,9 +84,10 @@ const upload = multer({ storage: storage })
 // create upload endpoint for images . In req we get image of user
 app.use('/images', express.static('upload/images'))
 app.post("/upload", upload.single('product'), (req, res) => {
+    const imageUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
     res.json({
         success: 1,
-        image_url: `http://localhost:${port}/images/${req.file.filename}` // templete literals
+        image_url: `${imageUrl}/images/${req.file.filename}`
     })
 })
 
@@ -78,32 +130,48 @@ const Product = mongoose.model("Product", {
 
 //Store product in database
 app.post('/addproduct', async (req, res) => {
-    let products = await Product.find({});
-    let id;
-    if (products.length > 0) {
-        let last_product_array = products.slice(-1);
-        let last_product = last_product_array[0];
-        id = last_product.id + 1;
+    try {
+        // Validate input
+        const { name, image, category, new_price, old_price } = req.body;
+        
+        if (!name || !image || !category || !new_price || !old_price) {
+            return res.status(400).json({ success: false, error: "All fields are required" });
+        }
+        
+        if (isNaN(new_price) || isNaN(old_price)) {
+            return res.status(400).json({ success: false, error: "Prices must be valid numbers" });
+        }
+        
+        let products = await Product.find({});
+        let id;
+        if (products.length > 0) {
+            let last_product_array = products.slice(-1);
+            let last_product = last_product_array[0];
+            id = last_product.id + 1;
+        }
+        else {
+            id = 1;
+        }
+        const product = new Product({
+            id: id,
+            name: req.body.name,
+            image: req.body.image,
+            category: req.body.category,
+            new_price: Number(req.body.new_price),
+            old_price: Number(req.body.old_price),
+        });
+        console.log(product);
+        await product.save();  // saved in database
+        console.log("Saved");
+        res.json({
+            // key and value
+            success: true,
+            name: req.body.name,   // here we will get product name.
+        })
+    } catch (error) {
+        console.error("Error adding product:", error);
+        res.status(500).json({ success: false, error: error.message });
     }
-    else {
-        id = 1;
-    }
-    const product = new Product({
-        id: id,
-        name: req.body.name,
-        image: req.body.image,
-        category: req.body.category,
-        new_price: req.body.new_price,
-        old_price: req.body.old_price,
-    });
-    console.log(product);
-    await product.save();  // saved in database
-    console.log("Saved");
-    res.json({
-        // key and value
-        success: true,
-        name: req.body.name,   // here we will get product name.
-    })
 })
 
 // Creating API for deleting Products
@@ -123,6 +191,8 @@ app.get('/allproducts', async (req, res) => {
     res.send(products);
 })
 
+
+
 // Schema creting for User model
 const Users = mongoose.model('Users', {
     name: {
@@ -137,6 +207,10 @@ const Users = mongoose.model('Users', {
     },
     cartData: {
         type: Object,
+    },
+    isAdmin: {
+        type: Boolean,
+        default: false,
     },
     date: {
         type: Date,
@@ -154,10 +228,11 @@ app.post('/signup', async (req, res) => {
     for (let i = 0; i < 300; i++) {
         cart[i] = 0;
     }
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
     const user = new Users({
         name: req.body.username,
         email: req.body.email,
-        password: req.body.password,
+        password: hashedPassword,
         cartData: cart,
     })
 
@@ -167,7 +242,7 @@ app.post('/signup', async (req, res) => {
             id: user.id
         }
     }
-    const token = jwt.sign(data, 'secret_ecom');
+    const token = jwt.sign(data, process.env.JWT_SECRET);
     res.json({ success: true, token })
 
 })
@@ -176,15 +251,15 @@ app.post('/signup', async (req, res) => {
 app.post('/login', async (req, res) => {
     let user = await Users.findOne({ email: req.body.email }); // from this we will get user to particular emailID 
     if (user) {
-        const passCompare = req.body.password === user.password;
+        const passCompare = await bcrypt.compare(req.body.password, user.password);
         if (passCompare) {
             const data = {
                 user: {
                     id: user.id
                 }
             }
-            const token = jwt.sign(data, 'secret_ecom');
-            res.json({ success: true, token });
+            const token = jwt.sign(data, process.env.JWT_SECRET);
+            res.json({ success: true, token, isAdmin: user.isAdmin });
         }
         else {
             res.json({ success: false, errors: "Wrong Password" });
@@ -221,7 +296,7 @@ const fetchUser = async (req, res, next) => {
     }
     else {
         try {
-            const data = jwt.verify(token, 'secret_ecom');
+            const data = jwt.verify(token, process.env.JWT_SECRET);
             req.user = data.user;
             next();
         } catch (error) {
@@ -255,6 +330,9 @@ app.post('/removefromcart', fetchUser, async (req, res) => {
 app.post('/getcart', fetchUser, async (req, res) => {
     console.log("GetCart");
     let userData = await Users.findOne({ _id: req.user.id });
+    if (!userData) {
+        return res.status(404).json({ errors: "User not found" });
+    }
     res.json(userData.cartData);
 })
 

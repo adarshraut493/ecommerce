@@ -92,6 +92,7 @@
     background: #FF4141;
     margin-bottom: 40px;
     border: none;
+    border-radius: 50px;
     outline: none;
     cursor: pointer;
 }

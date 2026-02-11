@@ -1,5 +1,6 @@
 import React, { createContext, useEffect, useState } from 'react'
 import CartItems from '../Components/CartItems/CartItems';
+import { toast } from 'react-toastify';
 
 export const ShopContext = createContext(null);
 const getDefaultCart = () => {                   // for logic of addd to cart 
@@ -13,14 +14,15 @@ const ShopContextProvider = (props) => {   // This is a function
 
     const [all_product, setAll_Product] = useState([]);
     const [cartItems, setCartItems] = useState(getDefaultCart());
+    const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
-        fetch('http://localhost:4000/allproducts')
+        fetch(`${process.env.REACT_APP_API_URL}/allproducts`)
             .then((response) => response.json())
             .then((data) => setAll_Product(data))
 
         if (localStorage.getItem('auth-token')) {
-            fetch('http://localhost:4000/getcart', {
+            fetch(`${process.env.REACT_APP_API_URL}/getcart`, {
                 method: 'POST',
                 headers: {
                     Accept: 'application/form-data',
@@ -31,13 +33,16 @@ const ShopContextProvider = (props) => {   // This is a function
             }).then((response) => response.json())
                 .then((data) => setCartItems(data));
         }
+        
+        const adminStatus = localStorage.getItem('isAdmin') === 'true';
+        setIsAdmin(adminStatus);
     }, [])
 
     const addToCart = (itemId) => {
         setCartItems((prev) => ({ ...prev, [itemId]: prev[itemId] + 1 })); // it add to the previous 
         //spread opearator          // value for that key      
         if (localStorage.getItem('auth-token')) {
-            fetch('http://localhost:4000/addtocart', {
+            fetch(`${process.env.REACT_APP_API_URL}/addtocart`, {
                 method: 'POST',
                 headers: {
                     Accept: 'application/form-data',
@@ -48,14 +53,19 @@ const ShopContextProvider = (props) => {   // This is a function
             })
 
                 .then((response) => response.json())
-                .then((data) => console.log(data))
+                .then((data) => {
+                    console.log(data);
+                    toast.success('Added to cart!');
+                })
+        } else {
+            toast.warning('Please login to add items to cart');
         }
     }
 
     const removeFromCart = (itemId) => {
         setCartItems((prev) => ({ ...prev, [itemId]: prev[itemId] - 1 }));
         if (localStorage.getItem('auth-token')) {
-            fetch('http://localhost:4000/removefromcart', {
+            fetch(`${process.env.REACT_APP_API_URL}/removefromcart`, {
                 method: 'POST',
                 headers: {
                     Accept: 'application/form-data',
@@ -66,7 +76,9 @@ const ShopContextProvider = (props) => {   // This is a function
             })
 
                 .then((response) => response.json())
-                .then((data) => console.log(data))
+                .then((data) => {
+                    console.log(data);
+                })
         }
     }
     const getTotalCartAmount = () => {
@@ -74,7 +86,9 @@ const ShopContextProvider = (props) => {   // This is a function
         for (const item in cartItems) {
             if (cartItems[item] > 0) {
                 let itemInfo = all_product.find((product) => product.id === Number(item))
-                totalAmount += itemInfo.new_price * cartItems[item];
+                if (itemInfo) {
+                    totalAmount += itemInfo.new_price * cartItems[item];
+                }
             }
         }
         return totalAmount;
@@ -90,7 +104,7 @@ const ShopContextProvider = (props) => {   // This is a function
     }
 
 
-    const contextValue = { getTotalCartItems, getTotalCartAmount, all_product, cartItems, addToCart, removeFromCart };
+    const contextValue = { getTotalCartItems, getTotalCartAmount, all_product, cartItems, addToCart, removeFromCart, isAdmin };
     return (
         <ShopContext.Provider value={contextValue}>
             {props.children}
