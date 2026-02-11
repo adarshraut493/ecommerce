@@ -10,7 +10,10 @@ const crypto = require("crypto"); // for razorpay signature validation
 const bcrypt = require("bcrypt"); // for password hashing
 
 app.use(express.json()); // by this express.josn whatever response we will get from response that will be automatically passed through json;
-app.use(cors());
+app.use(cors({
+    origin: ['https://ecommerce-ggvm.vercel.app', 'http://localhost:3000'],
+    credentials: true
+}));
 
 
 //For Razorpay
