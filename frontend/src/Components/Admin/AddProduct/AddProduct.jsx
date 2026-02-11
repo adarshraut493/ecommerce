@@ -84,7 +84,7 @@ const AddProduct = () => {
       </div>
       <div className='mb-6'>
         <label htmlFor="file-input" className='cursor-pointer'>
-          <img src={image ? URL.createObjectURL(image) : upload_area} className='w-32 h-32 object-contain border-2 border-dashed border-gray-300 rounded-lg p-4' />
+          <img src={image ? URL.createObjectURL(image) : upload_area} alt="Product" className='w-32 h-32 object-contain border-2 border-dashed border-gray-300 rounded-lg p-4' />
         </label>
         <input onChange={imageHandler} type="file" name='image' id='file-input' hidden />
       </div>

@@ -1,12 +1,9 @@
 import React, { useContext } from 'react'
 import { ShopContext } from '../../Context/ShopContext'
-import remove_icon from '../Assets/cart_cross_icon.png'
-import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 
 const CartItems = () => {
     const {getTotalCartAmount, all_product, cartItems, removeFromCart } = useContext(ShopContext);
-    const navigate = useNavigate();
     const [promoCode, setPromoCode] = React.useState('');
     const [discount, setDiscount] = React.useState(0);
     const [showDialog, setShowDialog] = React.useState(false);

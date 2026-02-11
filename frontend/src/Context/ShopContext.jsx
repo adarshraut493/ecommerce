@@ -1,5 +1,4 @@
 import React, { createContext, useEffect, useState } from 'react'
-import CartItems from '../Components/CartItems/CartItems';
 import { toast } from 'react-toastify';
 
 export const ShopContext = createContext(null);

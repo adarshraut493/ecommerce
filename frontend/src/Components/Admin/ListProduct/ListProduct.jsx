@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef } from 'react'
-import cross_icon from '../assets/cross_icon.png'
 import { toast } from 'react-toastify';
 
 const ListProduct = () => {
